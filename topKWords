@@ -1,0 +1,87 @@
+/**
+ * Definition of OutputCollector:
+ * class OutputCollector<K, V> {
+ *     public void collect(K key, V value);
+ *         // Adds a key/value pair to the output buffer
+ * }
+ * Definition of Document:
+ * class Document {
+ *     public int id;
+ *     public String content;
+ * }
+ */
+ 
+class Word {
+    protected String value;
+    protected int counts;
+    
+    Word(String value, int counts) {
+        this.value = value;
+        this.counts = counts;
+    }
+}
+
+public class TopKFrequentWords {
+
+    public static class Map {
+        public void map(String _, Document value,
+                        OutputCollector<String, Integer> output) {
+            // Output the results into output buffer.
+            // Ps. output.collect(String key, int value);
+            String content = value.content;
+            String[] words = content.split(" ");
+            for (String word : words) {
+                if (word.length() > 0) {
+                    output.collect(word, 1);
+                }
+            }
+        }
+    }
+
+    public static class Reduce {
+        private PriorityQueue<Word> topWords = null;
+        private int k = 0;
+        
+        private Comparator<Word> wordComparator = new Comparator<Word>() {
+            public int compare(Word a, Word b) {
+                if (a.counts != b.counts) {
+                    return a.counts - b.counts;
+                } else {
+                    return b.value.compareTo(a.value);
+                }
+            }
+        };
+
+        public void setup(int k) {
+            this.k = k;
+            this.topWords = new PriorityQueue (k, wordComparator);
+        } 
+
+        public void reduce(String key, Iterator<Integer> values) {
+            Word newWord = new Word(key, 0);
+            
+            while (values.hasNext()) {
+                newWord.counts += values.next();
+            }
+            
+            this.topWords.add(newWord); 
+            if (this.topWords.size() > this.k) {
+                this.topWords.poll();
+            }
+        }
+
+        public void cleanup(OutputCollector<String, Integer> output) {
+            // Output the top k pairs <word, times> into output buffer.
+            // Ps. output.collect(String key, Integer value);
+            List<Word> words = new ArrayList<Word>();
+            while (this.topWords.size() > 0) {
+                words.add(this.topWords.poll());
+            }
+            
+            int len = words.size();
+            for (int i = len-1; i >= 0; --i) {
+                output.collect(words.get(i).value, words.get(i).counts);
+            }
+        }
+    }
+}
